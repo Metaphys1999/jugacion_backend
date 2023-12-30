@@ -1,8 +1,24 @@
 package com.app.service.services.contract;
 
-import com.app.service.dtos.UserDto;
+import com.app.service.dtos.GetUserDto;
+import com.app.service.dtos.SaveUserDto;
+import com.app.service.dtos.UpdateUserDto;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
 
 public interface UserService {
 
-    UserDto saveUser(UserDto savedClientDto);
+    SaveUserDto saveUser(SaveUserDto savedSaveUserDto, MultipartFile file) throws IOException;
+
+    UpdateUserDto updateUser(Long userId, UpdateUserDto updatedSaveUserDto, MultipartFile file) throws IOException;
+
+    SaveUserDto deleteClient(Long userId);
+
+    String disableClient(Long userId);
+
+    List<GetUserDto> getAllClients();
+
+    GetUserDto getClientById(Long userId);
 }
