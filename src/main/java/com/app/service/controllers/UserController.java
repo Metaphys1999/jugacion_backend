@@ -22,17 +22,17 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("save")
-    public ResponseEntity<SaveUserDto> saveUser(@ModelAttribute SaveUserDto savedSaveUserDto, @RequestParam("photo") MultipartFile file) throws IOException {
+    public ResponseEntity<SaveUserDto> saveUser(@ModelAttribute SaveUserDto savedUserDto, @RequestParam("photo") MultipartFile file) throws IOException {
         String originalPhotoName = file.getOriginalFilename();
-        savedSaveUserDto.setPhotoPath(originalPhotoName);
+        savedUserDto.setPhotoPath(originalPhotoName);
 
-        return new ResponseEntity<>(userService.saveUser(savedSaveUserDto, file), HttpStatus.CREATED);
+        return new ResponseEntity<>(userService.saveUser(savedUserDto, file), HttpStatus.CREATED);
     }
 
     @PutMapping("update/{userId}")
-    public ResponseEntity<UpdateUserDto> updateUser(@PathVariable("userId") Long userId, @ModelAttribute UpdateUserDto updatedSaveUserDto, @RequestParam(value = "photo", required = false) MultipartFile file) throws IOException {
+    public ResponseEntity<UpdateUserDto> updateUser(@PathVariable("userId") Long userId, @ModelAttribute UpdateUserDto updateUserDto, @RequestParam(value = "photo", required = false) MultipartFile file) throws IOException {
 
-        UpdateUserDto updatedUser = userService.updateUser(userId, updatedSaveUserDto, file);
+        UpdateUserDto updatedUser = userService.updateUser(userId, updateUserDto, file);
 
         if (updatedUser != null) {
             return ResponseEntity.ok(updatedUser);
@@ -43,18 +43,18 @@ public class UserController {
 
     @GetMapping("all")
     public ResponseEntity<List<GetUserDto>> getAllClients() {
-        List<GetUserDto> saveUserDtoList = userService.getAllClients();
-        if (saveUserDtoList.isEmpty())
+        List<GetUserDto> getUserDtoList = userService.getAllClients();
+        if (getUserDtoList.isEmpty())
             return ResponseEntity.noContent().build();
-        return ResponseEntity.ok(saveUserDtoList);
+        return ResponseEntity.ok(getUserDtoList);
     }
 
     @GetMapping("{userId}")
     public ResponseEntity<GetUserDto> getClientById(@PathVariable("userId") Long userId) {
-        GetUserDto saveUserDtoById = userService.getClientById(userId);
-        if (saveUserDtoById == null)
+        GetUserDto getUserDtoById = userService.getClientById(userId);
+        if (getUserDtoById == null)
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(saveUserDtoById);
+        return ResponseEntity.ok(getUserDtoById);
     }
 
     @DeleteMapping("disable/{userId}")

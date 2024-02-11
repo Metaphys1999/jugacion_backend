@@ -8,6 +8,9 @@ import com.app.service.mapper.UserMapper;
 import com.app.service.entities.User;
 import com.app.service.repository.UserRepository;
 import com.app.service.services.contract.UserService;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +18,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -32,23 +39,48 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
-    public static String uploadDirectory =
-            System.getProperty("user.dir") + "/src/main/webapp/images/users";
+    private String uploadFile(File file, String fileName) throws IOException {
+        BlobId blobId = BlobId.of("lajugacionapp-80ae3.appspot.com", fileName);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("media").build();
+        InputStream inputStream = UserServiceImpl.class.getClassLoader().getResourceAsStream("firebase-private-key.json");
+        Credentials credentials = GoogleCredentials.fromStream(inputStream);
+        Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+        storage.create(blobInfo, Files.readAllBytes(file.toPath()));
+
+        String DOWNLOAD_URL = "https://firebasestorage.googleapis.com/v0/b/lajugacionapp-80ae3.appspot.com/o/%s?alt=media";
+        return String.format(DOWNLOAD_URL, URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+    }
+
+    private File convertToFile(MultipartFile multipartFile, String fileName) throws IOException {
+        File tempFile = new File(fileName);
+        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+            fos.write(multipartFile.getBytes());
+        }
+        return tempFile;
+    }
+
+    private String getExtension(String fileName) {
+        return fileName.substring(fileName.lastIndexOf("."));
+    }
 
     @Override
-    public SaveUserDto saveUser(SaveUserDto savedSaveUserDto, MultipartFile file) throws IOException {
+    public SaveUserDto saveUser(SaveUserDto savedUserDto, MultipartFile multipartFile) throws IOException {
 
         logger.info("Save User");
 
-        String originalPhotoName = file.getOriginalFilename();
-        Path photoNameAndPath = Paths.get(uploadDirectory, originalPhotoName);
-        Files.write(photoNameAndPath, file.getBytes());
+        String fileName = multipartFile.getOriginalFilename();
+        fileName = UUID.randomUUID().toString().concat(this.getExtension(fileName));
 
-        savedSaveUserDto.setPhotoPath(originalPhotoName);
+        File file = this.convertToFile(multipartFile, fileName);
+        String URL = this.uploadFile(file, fileName);
+        file.delete();
 
-        User newUser = userMapper.userDtoToUser(savedSaveUserDto);
+        savedUserDto.setPhotoPath(URL);
+        savedUserDto.setPhotoId(fileName);
 
-        newUser.setPhotoPath(savedSaveUserDto.getPhotoPath());
+        User newUser = userMapper.userDtoToUser(savedUserDto);
+
+        newUser.setPhotoPath(savedUserDto.getPhotoPath());
 
         newUser = userRepository.save(newUser);
 
@@ -58,30 +90,55 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UpdateUserDto updateUser(Long userId, UpdateUserDto updatedSaveUserDto, MultipartFile file) throws IOException {
+    public UpdateUserDto updateUser(Long userId, UpdateUserDto updateUserDto, MultipartFile multipartFile) throws IOException {
         logger.info("Update User");
 
+        String fileName = multipartFile.getOriginalFilename();
+        fileName = UUID.randomUUID().toString().concat(this.getExtension(fileName));
+
         User existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("The User with ID: " + userId + " was not found."));
+                .orElseThrow(() -> new ResourceNotFoundException
+                        ("The User with ID: " + userId + " was not found."));
 
-        existingUser.setName(updatedSaveUserDto.getName());
-        existingUser.setLastName(updatedSaveUserDto.getLastName());
-        existingUser.setEmail(updatedSaveUserDto.getEmail());
-        existingUser.setPhone(updatedSaveUserDto.getPhone());
-        existingUser.setAddress(updatedSaveUserDto.getAddress());
+        String oldPhotoId = existingUser.getPhotoId();
 
-        if (file != null && !file.isEmpty()) {
-            String originalPhotoName = file.getOriginalFilename();
-            Path photoNameAndPath = Paths.get(uploadDirectory, originalPhotoName);
-            Files.write(photoNameAndPath, file.getBytes());
-            existingUser.setPhotoPath(originalPhotoName);
-        }
+        deleteFileFromFirebase(oldPhotoId);
+
+        File file = this.convertToFile(multipartFile, fileName);
+        String URL = this.uploadFile(file, fileName);
+        file.delete();
+
+        existingUser.setName(updateUserDto.getName());
+        existingUser.setLastName(updateUserDto.getLastName());
+        existingUser.setEmail(updateUserDto.getEmail());
+        existingUser.setPhone(updateUserDto.getPhone());
+        existingUser.setAddress(updateUserDto.getAddress());
+        existingUser.setPhotoPath(URL);
+        existingUser.setPhotoId(fileName);
 
         User updatedUser = userRepository.save(existingUser);
 
 
-        UpdateUserDto updatedSaveUserDtoResult = userMapper.userToUpdateUserDto(updatedUser);
-        return updatedSaveUserDtoResult;
+        UpdateUserDto updatedUserDto = userMapper.userToUpdateUserDto(updatedUser);
+        return updatedUserDto;
+    }
+
+    public void deleteFileFromFirebase(String photoId) {
+        try {
+            BlobId blobId = BlobId.of("lajugacionapp-80ae3.appspot.com", photoId);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType("media").build();
+            InputStream inputStream = UserServiceImpl.class.getClassLoader().getResourceAsStream("firebase-private-key.json");
+            Credentials credentials = GoogleCredentials.fromStream(inputStream);
+            Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+            boolean deleted = storage.delete(blobId);
+            if (deleted) {
+                System.out.println("Archivo eliminado exitosamente: " + photoId);
+            } else {
+                System.out.println("No se pudo eliminar el archivo: " + photoId);
+            }
+        } catch (StorageException | IOException e) {
+            System.err.println("Error al eliminar el archivo: " + e.getMessage());
+        }
     }
 
     @Override

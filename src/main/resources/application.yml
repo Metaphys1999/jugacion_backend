@@ -7,8 +7,8 @@ spring:
       ddl-auto: update
     open-in-view: false
   datasource:
-    url: jdbc:mysql://localhost:3306/jugacionbd?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
-    username: root
+    url: jdbc:postgresql://localhost:5432/jugacionbd
+    username: postgres
     password: user
   h2:
     console:

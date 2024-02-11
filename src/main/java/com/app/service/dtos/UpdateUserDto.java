@@ -11,6 +11,7 @@ public class UpdateUserDto {
     private String phone;
     private String address;
     private String photoPath;
+    private String photoId;
 
     public String getName() {
         return name;
@@ -58,5 +59,13 @@ public class UpdateUserDto {
 
     public void setPhotoPath(String photoPath) {
         this.photoPath = photoPath;
+    }
+
+    public String getPhotoId() {
+        return photoId;
+    }
+
+    public void setPhotoId(String photoId) {
+        this.photoId = photoId;
     }
 }

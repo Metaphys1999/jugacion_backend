@@ -2,12 +2,18 @@ package com.app.service.dtos;
 
 import com.app.service.enums.UserRole;
 import com.app.service.enums.UserStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.sql.Date;
 
 @Data
-public class SaveUserDto {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RegisterRequest {
 
     private String numberId;
     private String name;

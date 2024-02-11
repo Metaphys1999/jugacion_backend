@@ -10,9 +10,9 @@ import java.util.List;
 
 public interface UserService {
 
-    SaveUserDto saveUser(SaveUserDto savedSaveUserDto, MultipartFile file) throws IOException;
+    SaveUserDto saveUser(SaveUserDto savedUserDto, MultipartFile file) throws IOException;
 
-    UpdateUserDto updateUser(Long userId, UpdateUserDto updatedSaveUserDto, MultipartFile file) throws IOException;
+    UpdateUserDto updateUser(Long userId, UpdateUserDto updatedUserDto, MultipartFile file) throws IOException;
 
     SaveUserDto deleteClient(Long userId);
 
